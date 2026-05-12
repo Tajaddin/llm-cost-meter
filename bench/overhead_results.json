@@ -1,0 +1,34 @@
+{
+  "iterations": 10000,
+  "bare": {
+    "label": "bare",
+    "n": 10000,
+    "mean_us": 0.369,
+    "p50_us": 0.4,
+    "p95_us": 0.5,
+    "p99_us": 0.6,
+    "p999_us": 0.9,
+    "max_us": 36.6
+  },
+  "wrapped": {
+    "label": "wrapped",
+    "n": 10000,
+    "mean_us": 22.025,
+    "p50_us": 20.8,
+    "p95_us": 32.0,
+    "p99_us": 47.4,
+    "p999_us": 84.1,
+    "max_us": 248.0
+  },
+  "overhead": {
+    "label": "overhead (wrapped - bare)",
+    "n": 10000,
+    "mean_us": 21.656,
+    "p50_us": 20.5,
+    "p95_us": 31.7,
+    "p99_us": 47.1,
+    "p999_us": 83.8,
+    "max_us": 247.3
+  },
+  "p99_under_1ms": true
+}

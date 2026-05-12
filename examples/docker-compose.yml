@@ -1,0 +1,40 @@
+# Spin up a local Prometheus + Grafana that scrapes a Python process exposing
+# /metrics on host port 9000.
+#
+# Usage:
+#   1. In the project root, run a Python process that wraps an LLM client and
+#      calls llm_cost_meter.start_metrics_server(9000). See README "Quickstart".
+#   2. From this directory: `docker compose up -d`
+#   3. Open Grafana at http://localhost:3000 (login admin / admin).
+#      The "LLM Cost Meter" dashboard is preloaded.
+
+services:
+  prometheus:
+    image: prom/prometheus:v3.0.1
+    container_name: lcm-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: lcm-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus

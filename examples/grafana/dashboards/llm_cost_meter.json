@@ -1,0 +1,167 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Spend last 24h (USD)",
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "sum(increase(llm_cost_usd_total[24h]))",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "value",
+        "colorMode": "value"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 4,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 1},
+              {"color": "red", "value": 10}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Calls last 5m",
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "sum(increase(llm_calls_total[5m]))", "refId": "A"}
+      ],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "textMode": "value"}
+    },
+    {
+      "type": "stat",
+      "title": "Cache hit ratio (5m)",
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "sum(rate(llm_cache_hits_total[5m])) / clamp_min(sum(rate(llm_cache_hits_total[5m]) + rate(llm_cache_misses_total[5m])), 1e-9)",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {"unit": "percentunit", "decimals": 1, "min": 0, "max": 1}
+      },
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "textMode": "value"}
+    },
+    {
+      "type": "stat",
+      "title": "Errors last 5m",
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "sum(increase(llm_calls_total{status=\"error\"}[5m]))",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "red", "value": 1}
+            ]
+          },
+          "color": {"mode": "thresholds"}
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Cost rate per model ($/min)",
+      "gridPos": {"h": 9, "w": 12, "x": 0, "y": 4},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "sum by (model) (rate(llm_cost_usd_total[1m])) * 60",
+          "refId": "A",
+          "legendFormat": "{{model}}"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "currencyUSD", "decimals": 4}}
+    },
+    {
+      "type": "timeseries",
+      "title": "Latency percentiles (s)",
+      "gridPos": {"h": 9, "w": 12, "x": 12, "y": 4},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.5, sum by (le, model) (rate(llm_latency_seconds_bucket[5m])))",
+          "refId": "A",
+          "legendFormat": "p50 {{model}}"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, model) (rate(llm_latency_seconds_bucket[5m])))",
+          "refId": "B",
+          "legendFormat": "p95 {{model}}"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le, model) (rate(llm_latency_seconds_bucket[5m])))",
+          "refId": "C",
+          "legendFormat": "p99 {{model}}"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "s"}}
+    },
+    {
+      "type": "timeseries",
+      "title": "Token rate per type (tokens/sec)",
+      "gridPos": {"h": 9, "w": 12, "x": 0, "y": 13},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "sum by (token_type) (rate(llm_tokens_total[1m]))",
+          "refId": "A",
+          "legendFormat": "{{token_type}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Cache hit ratio (rolling)",
+      "gridPos": {"h": 9, "w": 12, "x": 12, "y": 13},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "sum(rate(llm_cache_hits_total[5m])) / clamp_min(sum(rate(llm_cache_hits_total[5m]) + rate(llm_cache_misses_total[5m])), 1e-9)",
+          "refId": "A",
+          "legendFormat": "ratio"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "percentunit", "min": 0, "max": 1, "decimals": 2}}
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": ["llm", "anthropic", "openai", "cost"],
+  "templating": {"list": []},
+  "time": {"from": "now-1h", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "LLM Cost Meter",
+  "uid": "llm-cost-meter",
+  "version": 1,
+  "weekStart": ""
+}

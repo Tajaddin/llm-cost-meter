@@ -4,8 +4,10 @@
 # Usage:
 #   1. In the project root, run a Python process that wraps an LLM client and
 #      calls llm_cost_meter.start_metrics_server(9000). See README "Quickstart".
-#   2. From this directory: `docker compose up -d`
-#   3. Open Grafana at http://localhost:3000 (login admin / admin).
+#   2. Set the Grafana admin password (required, no default):
+#        export GRAFANA_ADMIN_PASSWORD=<your-strong-password>
+#   3. From this directory: `docker compose up -d`
+#   4. Open Grafana at http://localhost:3000 (login admin / $GRAFANA_ADMIN_PASSWORD).
 #      The "LLM Cost Meter" dashboard is preloaded.
 
 services:
@@ -30,7 +32,10 @@ services:
       - "3000:3000"
     environment:
       - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      # No fallback: compose up fails fast if GRAFANA_ADMIN_PASSWORD is unset,
+      # which is what we want for a demo that ships a dashboard but should not
+      # ship a usable admin login.
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD must be set}
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
     volumes:

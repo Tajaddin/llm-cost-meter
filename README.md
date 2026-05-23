@@ -83,10 +83,16 @@ python examples/demo.py
 
 # Terminal 2 — bring up the observability stack
 cd examples
+export GRAFANA_ADMIN_PASSWORD=<your-strong-password>   # required, no default
 docker compose up -d
 
-# http://localhost:3000  (admin / admin) → Dashboards → LLM Cost Meter
+# http://localhost:3000  (admin / $GRAFANA_ADMIN_PASSWORD) → Dashboards → LLM Cost Meter
 ```
+
+If `GRAFANA_ADMIN_PASSWORD` is unset, `docker compose up` exits with
+`GRAFANA_ADMIN_PASSWORD must be set` and the Grafana container does not
+start. This is intentional: the demo ships a dashboard but never an
+admin login.
 
 Dashboard panels:
 

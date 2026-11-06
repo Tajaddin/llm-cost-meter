@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 import pytest
 
 from llm_cost_meter import (
@@ -163,3 +165,24 @@ def test_wrap_rejects_client_with_coroutine_create() -> None:
 
     with pytest.raises(TypeError, match="async"):
         wrap(Client())
+
+
+def test_unpriced_model_is_flagged_not_silently_free(caplog) -> None:
+    client = wrap(make_fake_anthropic(input_tokens=100, output_tokens=50))
+    with caplog.at_level(logging.WARNING, logger="llm_cost_meter"):
+        client.messages.create(model="claude-unlisted-1", messages=[])
+        client.messages.create(model="claude-unlisted-1", messages=[])
+    body, _ = metrics_text()
+    assert _metric_value(body, 'llm_unpriced_calls_total{model="claude-unlisted-1",provider="anthropic"}') == 2.0
+    assert _metric_value(body, 'llm_cost_usd_total{model="claude-unlisted-1",provider="anthropic"}') is None
+    assert _metric_value(body, 'llm_tokens_total{model="claude-unlisted-1",provider="anthropic",token_type="input"}') == 200.0
+    warnings = [r for r in caplog.records if "claude-unlisted-1" in r.getMessage()]
+    assert len(warnings) == 1
+    assert warnings[0].levelno == logging.WARNING
+
+
+def test_priced_model_is_not_flagged() -> None:
+    client = wrap(make_fake_openai())
+    client.chat.completions.create(model="gpt-4o-mini", messages=[])
+    body, _ = metrics_text()
+    assert _metric_value(body, 'llm_unpriced_calls_total{model="gpt-4o-mini",provider="openai"}') is None

@@ -65,6 +65,7 @@ client.chat.completions.create(model="gpt-4o-mini", messages=[...])
 | `llm_latency_seconds` | Histogram | provider, model | Wall-clock latency per call |
 | `llm_cache_hits_total` | Counter | provider, model | Cached input tokens served (Anthropic `cache_read_input_tokens` / OpenAI `cached_tokens`) |
 | `llm_cache_misses_total` | Counter | provider, model | Fresh input tokens billed at full rate |
+| `llm_unpriced_calls_total` | Counter | provider, model | Calls whose model has no pricing entry. Tokens are still counted, cost is not, and a warning is logged once per model. Fix with `register_pricing(...)` |
 
 Cache hit ratio in PromQL:
 

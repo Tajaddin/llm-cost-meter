@@ -17,11 +17,23 @@ Usage::
 from __future__ import annotations
 
 import inspect
+import logging
 import time
 from typing import Any
 
-from llm_cost_meter.metrics import CACHE_HITS, CACHE_MISSES, CALLS, COST, LATENCY, TOKENS
-from llm_cost_meter.pricing import cost_for
+from llm_cost_meter.metrics import (
+    CACHE_HITS,
+    CACHE_MISSES,
+    CALLS,
+    COST,
+    LATENCY,
+    TOKENS,
+    UNPRICED,
+)
+from llm_cost_meter.pricing import cost_for, get_pricing
+
+logger = logging.getLogger(__name__)
+_warned_unpriced: set[tuple[str, str]] = set()
 
 
 # ---------------------------------------------------------------------------
@@ -56,6 +68,19 @@ def _record(
         CACHE_HITS.labels(provider=provider, model=model).inc(cache_read_tokens)
     if input_tokens:
         CACHE_MISSES.labels(provider=provider, model=model).inc(input_tokens)
+
+    if get_pricing(model) is None:
+        if input_tokens or output_tokens or cache_write_tokens or cache_read_tokens:
+            UNPRICED.labels(provider=provider, model=model).inc()
+            if (provider, model) not in _warned_unpriced:
+                _warned_unpriced.add((provider, model))
+                logger.warning(
+                    "No pricing registered for %s model %r; its cost is not recorded. "
+                    "Add it with llm_cost_meter.register_pricing().",
+                    provider,
+                    model,
+                )
+        return
 
     cost = cost_for(
         model,

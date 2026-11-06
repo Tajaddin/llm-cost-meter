@@ -1,6 +1,6 @@
 """Prometheus metric definitions and helpers.
 
-Six metrics are exported by the wrapper:
+Seven metrics are exported by the wrapper:
 
 * ``llm_calls_total`` (Counter)        — calls made, labeled by provider / model / status
 * ``llm_tokens_total`` (Counter)       — tokens consumed, labeled by provider / model / token_type
@@ -8,6 +8,7 @@ Six metrics are exported by the wrapper:
 * ``llm_latency_seconds`` (Histogram)  — call latency, labeled by provider / model
 * ``llm_cache_hits_total`` (Counter)   — cached input tokens hit, labeled by provider / model
 * ``llm_cache_misses_total`` (Counter) — non-cached input tokens, labeled by provider / model
+* ``llm_unpriced_calls_total`` (Counter) — calls with tokens but no pricing entry, so no cost recorded
 
 Cache hit ratio is computed in Prometheus as
 ``rate(llm_cache_hits_total[5m]) / (rate(llm_cache_hits_total[5m]) + rate(llm_cache_misses_total[5m]))``.
@@ -72,7 +73,14 @@ CACHE_MISSES = Counter(
 )
 
 
-_ALL_METRICS = (CALLS, TOKENS, COST, LATENCY, CACHE_HITS, CACHE_MISSES)
+UNPRICED = Counter(
+    "llm_unpriced_calls_total",
+    "Calls whose model has no pricing entry; their tokens are counted but no cost is recorded.",
+    labelnames=_LABELS,
+)
+
+
+_ALL_METRICS = (CALLS, TOKENS, COST, LATENCY, CACHE_HITS, CACHE_MISSES, UNPRICED)
 
 
 def metrics_text(registry: CollectorRegistry = REGISTRY) -> tuple[bytes, str]:

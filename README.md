@@ -34,7 +34,7 @@ pip install -e ".[anthropic,openai]"
 from anthropic import Anthropic
 from llm_cost_meter import wrap, start_metrics_server
 
-start_metrics_server(9000)        # /metrics on :9000
+start_metrics_server(9000)        # /metrics on 127.0.0.1:9000; addr="0.0.0.0" to expose it
 
 client = wrap(Anthropic())        # auto-detected
 # ... use the client normally — every call is metered

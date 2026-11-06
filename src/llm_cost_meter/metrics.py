@@ -19,7 +19,9 @@ replaces the underlying samples but keeps the registry stable.
 
 from __future__ import annotations
 
+import threading
 from typing import Iterable
+from wsgiref.simple_server import WSGIServer
 
 from prometheus_client import (
     CONTENT_TYPE_LATEST,
@@ -88,14 +90,21 @@ def metrics_text(registry: CollectorRegistry = REGISTRY) -> tuple[bytes, str]:
     return generate_latest(registry), CONTENT_TYPE_LATEST
 
 
-def start_metrics_server(port: int = 9000, addr: str = "0.0.0.0") -> None:
+def start_metrics_server(
+    port: int = 9000, addr: str = "127.0.0.1"
+) -> tuple[WSGIServer, threading.Thread]:
     """Start a Prometheus HTTP exposition server on ``addr:port``.
+
+    Binds to loopback by default, since the metrics carry model names and
+    spend. Pass ``addr="0.0.0.0"`` when a scraper on another host or
+    container needs to reach it. Returns the server and its thread so the
+    caller can ``shutdown()`` it.
 
     Wraps ``prometheus_client.start_http_server``. Calling this is optional —
     if the host process already has a Prometheus endpoint, the metrics
     registered in this module will be picked up automatically.
     """
-    start_http_server(port, addr)
+    return start_http_server(port, addr)
 
 
 def reset_metrics() -> None:

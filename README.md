@@ -2,7 +2,7 @@
 
 > Drop-in Prometheus middleware for Anthropic and OpenAI SDK calls. Token cost, latency, and prompt-cache hit ratio in one wrapper — **47 µs p99 overhead per call**, 21× under the 1 ms budget.
 
-[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE) [![Tests](https://img.shields.io/badge/tests-17%20passing-brightgreen)](#tests) [![Python](https://img.shields.io/badge/python-3.10%2B-blue)]()
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE) [![Tests](https://img.shields.io/badge/tests-28%20passing-brightgreen)](#tests) [![Python](https://img.shields.io/badge/python-3.10%2B-blue)]()
 
 ## Hero numbers
 
@@ -132,10 +132,10 @@ pytest -q
 ```
 
 ```
-17 passed in 0.17s
+28 passed in 0.86s
 ```
 
-Covers pricing math, metrics-increment correctness, error-path bookkeeping, prompt-cache token accounting, response-shape passthrough, multi-call accumulation, and auto-detect.
+Covers pricing math against the published list prices, metrics-increment correctness, error-path bookkeeping, prompt-cache token accounting, response-shape passthrough, multi-call accumulation, auto-detect, async-client rejection, unpriced-model flagging, and the loopback default of the metrics server.
 
 ## Project layout
 
@@ -146,7 +146,7 @@ Covers pricing math, metrics-increment correctness, error-path bookkeeping, prom
 │   ├── pricing.py            # Per-model pricing + cache math
 │   ├── wrap.py               # AnthropicMeter / OpenAIMeter / wrap()
 │   └── __init__.py
-├── tests/                    # 17 pytest cases
+├── tests/                    # 28 pytest cases
 ├── bench/
 │   ├── overhead.py           # 10K-call overhead benchmark
 │   └── overhead_results.json # Last run's numbers

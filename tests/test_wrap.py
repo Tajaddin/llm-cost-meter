@@ -30,8 +30,8 @@ def test_anthropic_wrap_records_tokens_and_cost() -> None:
     assert _metric_value(body, 'llm_tokens_total{model="claude-haiku-4-5-20251001",provider="anthropic",token_type="input"}') == 100.0
     assert _metric_value(body, 'llm_tokens_total{model="claude-haiku-4-5-20251001",provider="anthropic",token_type="output"}') == 50.0
     cost = _metric_value(body, 'llm_cost_usd_total{model="claude-haiku-4-5-20251001",provider="anthropic"}')
-    # 100 × 0.80/M + 50 × 4.00/M = 0.00008 + 0.0002 = 0.00028
-    assert cost == pytest.approx(0.00028, rel=1e-6)
+    # 100 × 1.00/M + 50 × 5.00/M = 0.0001 + 0.00025 = 0.00035
+    assert cost == pytest.approx(0.00035, rel=1e-6)
 
 
 def test_anthropic_wrap_records_cache_tokens() -> None:

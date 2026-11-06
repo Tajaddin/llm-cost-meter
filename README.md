@@ -160,7 +160,7 @@ Covers pricing math, metrics-increment correctness, error-path bookkeeping, prom
 
 **Streaming responses.** The wrapper instruments `messages.create` and `chat.completions.create`. Streaming variants (`messages.stream`, `chat.completions.create(stream=True)`) emit usage in a final chunk — not yet wired. Tracked for v0.2.
 
-**Async clients.** `AsyncAnthropic` and `AsyncOpenAI` follow the same shape and would slot into the same wrapper pattern — adding ~30 lines. Open to PRs.
+**Async clients.** Not supported yet. `wrap()` raises `TypeError` for `AsyncAnthropic`, `AsyncOpenAI` and any client whose `create` is a coroutine function, instead of recording calls with zero tokens.
 
 **Cost is list-price.** Enterprise contracts, batch API discounts, and free-tier credits will shift absolute spend. Register custom pricing via `register_pricing(...)` to get your effective rate.
 

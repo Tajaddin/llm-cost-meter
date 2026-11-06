@@ -113,3 +113,53 @@ def test_multiple_calls_accumulate() -> None:
     body, _ = metrics_text()
     assert _metric_value(body, 'llm_calls_total{model="claude-haiku-4-5-20251001",provider="anthropic",status="ok"}') == 5.0
     assert _metric_value(body, 'llm_tokens_total{model="claude-haiku-4-5-20251001",provider="anthropic",token_type="input"}') == 50.0
+
+
+def _async_anthropic():
+    class AsyncMessages:
+        async def create(self, **kw):
+            raise AssertionError("must not be reached")
+
+    class AsyncAnthropic:
+        messages = AsyncMessages()
+
+    return AsyncAnthropic()
+
+
+def _async_openai():
+    class AsyncCompletions:
+        async def create(self, **kw):
+            raise AssertionError("must not be reached")
+
+    class AsyncChat:
+        completions = AsyncCompletions()
+
+    class AsyncOpenAI:
+        chat = AsyncChat()
+
+    return AsyncOpenAI()
+
+
+@pytest.mark.parametrize("make_client", [_async_anthropic, _async_openai])
+def test_wrap_rejects_async_clients(make_client) -> None:
+    with pytest.raises(TypeError, match="async"):
+        wrap(make_client())
+
+
+def test_explicit_constructors_reject_async_clients() -> None:
+    with pytest.raises(TypeError, match="async"):
+        AnthropicMeter(_async_anthropic())
+    with pytest.raises(TypeError, match="async"):
+        OpenAIMeter(_async_openai())
+
+
+def test_wrap_rejects_client_with_coroutine_create() -> None:
+    class Messages:
+        async def create(self, **kw):
+            raise AssertionError("must not be reached")
+
+    class Client:
+        messages = Messages()
+
+    with pytest.raises(TypeError, match="async"):
+        wrap(Client())

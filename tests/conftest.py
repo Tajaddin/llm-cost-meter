@@ -7,13 +7,16 @@ from types import SimpleNamespace
 import pytest
 
 from llm_cost_meter.metrics import reset_metrics
+from llm_cost_meter.wrap import _warned_unpriced
 
 
 @pytest.fixture(autouse=True)
 def _clear_metrics():
     reset_metrics()
+    _warned_unpriced.clear()
     yield
     reset_metrics()
+    _warned_unpriced.clear()
 
 
 def _anthropic_usage(input_tokens=10, output_tokens=5, cache_write=0, cache_read=0):

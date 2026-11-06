@@ -118,7 +118,7 @@ from llm_cost_meter import Pricing, register_pricing
 # 50% off via your enterprise agreement
 register_pricing(
     "claude-haiku-4-5-20251001",
-    Pricing.for_anthropic(input_per_mtok=0.40, output_per_mtok=2.00),
+    Pricing.for_anthropic(input_per_mtok=0.50, output_per_mtok=2.50),
 )
 ```
 

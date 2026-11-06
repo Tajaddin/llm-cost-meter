@@ -58,10 +58,11 @@ _ANTHROPIC_PRICING: dict[str, Pricing] = {
 # OpenAI public pricing (USD per million tokens). gpt-4o, gpt-4o-mini,
 # gpt-4.1 and gpt-4.1-mini checked 2026-11-06 against
 # https://developers.openai.com/api/docs/pricing; o4-mini is not listed there.
-# OpenAI's prompt cache is included automatically when applicable (50% off on
-# input). We expose it via ``cache_read_per_mtok`` for consistency with the
-# Anthropic side; ``cache_write_per_mtok`` is left at 0 because OpenAI does not
-# charge a creation premium.
+# OpenAI's prompt cache is included automatically when applicable; the
+# cached-input discount varies by model (50% for gpt-4o and gpt-4o-mini, 75%
+# for gpt-4.1 and gpt-4.1-mini). We expose it via ``cache_read_per_mtok`` for
+# consistency with the Anthropic side; ``cache_write_per_mtok`` is left at 0
+# because OpenAI does not charge a creation premium.
 # ---------------------------------------------------------------------------
 _OPENAI_PRICING: dict[str, Pricing] = {
     "gpt-4o-mini": Pricing(0.15, 0.60, 0.0, 0.075),

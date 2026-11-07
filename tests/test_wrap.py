@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 import pytest
 
 from llm_cost_meter import (
@@ -30,8 +32,8 @@ def test_anthropic_wrap_records_tokens_and_cost() -> None:
     assert _metric_value(body, 'llm_tokens_total{model="claude-haiku-4-5-20251001",provider="anthropic",token_type="input"}') == 100.0
     assert _metric_value(body, 'llm_tokens_total{model="claude-haiku-4-5-20251001",provider="anthropic",token_type="output"}') == 50.0
     cost = _metric_value(body, 'llm_cost_usd_total{model="claude-haiku-4-5-20251001",provider="anthropic"}')
-    # 100 × 0.80/M + 50 × 4.00/M = 0.00008 + 0.0002 = 0.00028
-    assert cost == pytest.approx(0.00028, rel=1e-6)
+    # 100 × 1.00/M + 50 × 5.00/M = 0.0001 + 0.00025 = 0.00035
+    assert cost == pytest.approx(0.00035, rel=1e-6)
 
 
 def test_anthropic_wrap_records_cache_tokens() -> None:
@@ -113,3 +115,74 @@ def test_multiple_calls_accumulate() -> None:
     body, _ = metrics_text()
     assert _metric_value(body, 'llm_calls_total{model="claude-haiku-4-5-20251001",provider="anthropic",status="ok"}') == 5.0
     assert _metric_value(body, 'llm_tokens_total{model="claude-haiku-4-5-20251001",provider="anthropic",token_type="input"}') == 50.0
+
+
+def _async_anthropic():
+    class AsyncMessages:
+        async def create(self, **kw):
+            raise AssertionError("must not be reached")
+
+    class AsyncAnthropic:
+        messages = AsyncMessages()
+
+    return AsyncAnthropic()
+
+
+def _async_openai():
+    class AsyncCompletions:
+        async def create(self, **kw):
+            raise AssertionError("must not be reached")
+
+    class AsyncChat:
+        completions = AsyncCompletions()
+
+    class AsyncOpenAI:
+        chat = AsyncChat()
+
+    return AsyncOpenAI()
+
+
+@pytest.mark.parametrize("make_client", [_async_anthropic, _async_openai])
+def test_wrap_rejects_async_clients(make_client) -> None:
+    with pytest.raises(TypeError, match="async"):
+        wrap(make_client())
+
+
+def test_explicit_constructors_reject_async_clients() -> None:
+    with pytest.raises(TypeError, match="async"):
+        AnthropicMeter(_async_anthropic())
+    with pytest.raises(TypeError, match="async"):
+        OpenAIMeter(_async_openai())
+
+
+def test_wrap_rejects_client_with_coroutine_create() -> None:
+    class Messages:
+        async def create(self, **kw):
+            raise AssertionError("must not be reached")
+
+    class Client:
+        messages = Messages()
+
+    with pytest.raises(TypeError, match="async"):
+        wrap(Client())
+
+
+def test_unpriced_model_is_flagged_not_silently_free(caplog) -> None:
+    client = wrap(make_fake_anthropic(input_tokens=100, output_tokens=50))
+    with caplog.at_level(logging.WARNING, logger="llm_cost_meter"):
+        client.messages.create(model="claude-unlisted-1", messages=[])
+        client.messages.create(model="claude-unlisted-1", messages=[])
+    body, _ = metrics_text()
+    assert _metric_value(body, 'llm_unpriced_calls_total{model="claude-unlisted-1",provider="anthropic"}') == 2.0
+    assert _metric_value(body, 'llm_cost_usd_total{model="claude-unlisted-1",provider="anthropic"}') is None
+    assert _metric_value(body, 'llm_tokens_total{model="claude-unlisted-1",provider="anthropic",token_type="input"}') == 200.0
+    warnings = [r for r in caplog.records if "claude-unlisted-1" in r.getMessage()]
+    assert len(warnings) == 1
+    assert warnings[0].levelno == logging.WARNING
+
+
+def test_priced_model_is_not_flagged() -> None:
+    client = wrap(make_fake_openai())
+    client.chat.completions.create(model="gpt-4o-mini", messages=[])
+    body, _ = metrics_text()
+    assert _metric_value(body, 'llm_unpriced_calls_total{model="gpt-4o-mini",provider="openai"}') is None

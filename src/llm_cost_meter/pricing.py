@@ -39,24 +39,30 @@ class Pricing:
 
 
 # ---------------------------------------------------------------------------
-# Anthropic public pricing (USD per million tokens, as of 2026-01).
+# Anthropic public pricing (USD per million tokens).
+# Claude 4.x rates and the 1.25x / 0.1x cache multipliers checked 2026-11-06
+# against https://platform.claude.com/docs/en/about-claude/pricing. The
+# claude-3-* models are retired and no longer listed there.
 # ---------------------------------------------------------------------------
 _ANTHROPIC_PRICING: dict[str, Pricing] = {
-    "claude-haiku-4-5-20251001": Pricing.for_anthropic(0.80, 4.00),
-    "claude-haiku-4-5": Pricing.for_anthropic(0.80, 4.00),
+    "claude-haiku-4-5-20251001": Pricing.for_anthropic(1.00, 5.00),
+    "claude-haiku-4-5": Pricing.for_anthropic(1.00, 5.00),
     "claude-3-5-haiku-latest": Pricing.for_anthropic(0.80, 4.00),
     "claude-sonnet-4-6": Pricing.for_anthropic(3.00, 15.00),
     "claude-3-5-sonnet-latest": Pricing.for_anthropic(3.00, 15.00),
-    "claude-opus-4-7": Pricing.for_anthropic(15.00, 75.00),
+    "claude-opus-4-7": Pricing.for_anthropic(5.00, 25.00),
     "claude-3-opus-latest": Pricing.for_anthropic(15.00, 75.00),
 }
 
 # ---------------------------------------------------------------------------
-# OpenAI public pricing (USD per million tokens, as of 2026-01).
-# OpenAI's prompt cache is included automatically when applicable (50% off on
-# input). We expose it via ``cache_read_per_mtok`` for consistency with the
-# Anthropic side; ``cache_write_per_mtok`` is left at 0 because OpenAI does not
-# charge a creation premium.
+# OpenAI public pricing (USD per million tokens). gpt-4o, gpt-4o-mini,
+# gpt-4.1 and gpt-4.1-mini checked 2026-11-06 against
+# https://developers.openai.com/api/docs/pricing; o4-mini is not listed there.
+# OpenAI's prompt cache is included automatically when applicable; the
+# cached-input discount varies by model (50% for gpt-4o and gpt-4o-mini, 75%
+# for gpt-4.1 and gpt-4.1-mini). We expose it via ``cache_read_per_mtok`` for
+# consistency with the Anthropic side; ``cache_write_per_mtok`` is left at 0
+# because OpenAI does not charge a creation premium.
 # ---------------------------------------------------------------------------
 _OPENAI_PRICING: dict[str, Pricing] = {
     "gpt-4o-mini": Pricing(0.15, 0.60, 0.0, 0.075),

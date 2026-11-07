@@ -1,6 +1,6 @@
 """Prometheus metric definitions and helpers.
 
-Six metrics are exported by the wrapper:
+Seven metrics are exported by the wrapper:
 
 * ``llm_calls_total`` (Counter)        — calls made, labeled by provider / model / status
 * ``llm_tokens_total`` (Counter)       — tokens consumed, labeled by provider / model / token_type
@@ -8,6 +8,7 @@ Six metrics are exported by the wrapper:
 * ``llm_latency_seconds`` (Histogram)  — call latency, labeled by provider / model
 * ``llm_cache_hits_total`` (Counter)   — cached input tokens hit, labeled by provider / model
 * ``llm_cache_misses_total`` (Counter) — non-cached input tokens, labeled by provider / model
+* ``llm_unpriced_calls_total`` (Counter) — calls with tokens but no pricing entry, so no cost recorded
 
 Cache hit ratio is computed in Prometheus as
 ``rate(llm_cache_hits_total[5m]) / (rate(llm_cache_hits_total[5m]) + rate(llm_cache_misses_total[5m]))``.
@@ -18,7 +19,9 @@ replaces the underlying samples but keeps the registry stable.
 
 from __future__ import annotations
 
+import threading
 from typing import Iterable
+from wsgiref.simple_server import WSGIServer
 
 from prometheus_client import (
     CONTENT_TYPE_LATEST,
@@ -72,7 +75,14 @@ CACHE_MISSES = Counter(
 )
 
 
-_ALL_METRICS = (CALLS, TOKENS, COST, LATENCY, CACHE_HITS, CACHE_MISSES)
+UNPRICED = Counter(
+    "llm_unpriced_calls_total",
+    "Calls whose model has no pricing entry; their tokens are counted but no cost is recorded.",
+    labelnames=_LABELS,
+)
+
+
+_ALL_METRICS = (CALLS, TOKENS, COST, LATENCY, CACHE_HITS, CACHE_MISSES, UNPRICED)
 
 
 def metrics_text(registry: CollectorRegistry = REGISTRY) -> tuple[bytes, str]:
@@ -80,14 +90,21 @@ def metrics_text(registry: CollectorRegistry = REGISTRY) -> tuple[bytes, str]:
     return generate_latest(registry), CONTENT_TYPE_LATEST
 
 
-def start_metrics_server(port: int = 9000, addr: str = "0.0.0.0") -> None:
+def start_metrics_server(
+    port: int = 9000, addr: str = "127.0.0.1"
+) -> tuple[WSGIServer, threading.Thread]:
     """Start a Prometheus HTTP exposition server on ``addr:port``.
+
+    Binds to loopback by default, since the metrics carry model names and
+    spend. Pass ``addr="0.0.0.0"`` when a scraper on another host or
+    container needs to reach it. Returns the server and its thread so the
+    caller can ``shutdown()`` it.
 
     Wraps ``prometheus_client.start_http_server``. Calling this is optional —
     if the host process already has a Prometheus endpoint, the metrics
     registered in this module will be picked up automatically.
     """
-    start_http_server(port, addr)
+    return start_http_server(port, addr)
 
 
 def reset_metrics() -> None:

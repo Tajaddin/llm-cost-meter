@@ -3,7 +3,9 @@
 #
 # Usage:
 #   1. In the project root, run a Python process that wraps an LLM client and
-#      calls llm_cost_meter.start_metrics_server(9000). See README "Quickstart".
+#      calls llm_cost_meter.start_metrics_server(9000, addr="0.0.0.0"), as
+#      examples/demo.py does. The default loopback bind is not reachable from
+#      this compose network on Linux.
 #   2. Set the Grafana admin password (required, no default):
 #        export GRAFANA_ADMIN_PASSWORD=<your-strong-password>
 #   3. From this directory: `docker compose up -d`

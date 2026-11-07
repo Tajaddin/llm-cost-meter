@@ -2,7 +2,7 @@
 
 > Drop-in Prometheus middleware for Anthropic and OpenAI SDK calls. Token cost, latency, and prompt-cache hit ratio in one wrapper — **47 µs p99 overhead per call**, 21× under the 1 ms budget.
 
-[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE) [![Tests](https://img.shields.io/badge/tests-17%20passing-brightgreen)](#tests) [![Python](https://img.shields.io/badge/python-3.10%2B-blue)]()
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE) [![Tests](https://img.shields.io/badge/tests-28%20passing-brightgreen)](#tests) [![Python](https://img.shields.io/badge/python-3.10%2B-blue)]()
 
 ## Hero numbers
 
@@ -34,7 +34,7 @@ pip install -e ".[anthropic,openai]"
 from anthropic import Anthropic
 from llm_cost_meter import wrap, start_metrics_server
 
-start_metrics_server(9000)        # /metrics on :9000
+start_metrics_server(9000)        # /metrics on 127.0.0.1:9000; addr="0.0.0.0" to expose it
 
 client = wrap(Anthropic())        # auto-detected
 # ... use the client normally — every call is metered
@@ -65,6 +65,7 @@ client.chat.completions.create(model="gpt-4o-mini", messages=[...])
 | `llm_latency_seconds` | Histogram | provider, model | Wall-clock latency per call |
 | `llm_cache_hits_total` | Counter | provider, model | Cached input tokens served (Anthropic `cache_read_input_tokens` / OpenAI `cached_tokens`) |
 | `llm_cache_misses_total` | Counter | provider, model | Fresh input tokens billed at full rate |
+| `llm_unpriced_calls_total` | Counter | provider, model | Calls whose model has no pricing entry. Tokens are still counted, cost is not, and a warning is logged once per model. Fix with `register_pricing(...)` |
 
 Cache hit ratio in PromQL:
 
@@ -117,7 +118,7 @@ from llm_cost_meter import Pricing, register_pricing
 # 50% off via your enterprise agreement
 register_pricing(
     "claude-haiku-4-5-20251001",
-    Pricing.for_anthropic(input_per_mtok=0.40, output_per_mtok=2.00),
+    Pricing.for_anthropic(input_per_mtok=0.50, output_per_mtok=2.50),
 )
 ```
 
@@ -131,10 +132,10 @@ pytest -q
 ```
 
 ```
-17 passed in 0.17s
+28 passed in 0.86s
 ```
 
-Covers pricing math, metrics-increment correctness, error-path bookkeeping, prompt-cache token accounting, response-shape passthrough, multi-call accumulation, and auto-detect.
+Covers pricing math against the published list prices, metrics-increment correctness, error-path bookkeeping, prompt-cache token accounting, response-shape passthrough, multi-call accumulation, auto-detect, async-client rejection, unpriced-model flagging, and the loopback default of the metrics server.
 
 ## Project layout
 
@@ -145,7 +146,7 @@ Covers pricing math, metrics-increment correctness, error-path bookkeeping, prom
 │   ├── pricing.py            # Per-model pricing + cache math
 │   ├── wrap.py               # AnthropicMeter / OpenAIMeter / wrap()
 │   └── __init__.py
-├── tests/                    # 17 pytest cases
+├── tests/                    # 28 pytest cases
 ├── bench/
 │   ├── overhead.py           # 10K-call overhead benchmark
 │   └── overhead_results.json # Last run's numbers
@@ -160,7 +161,7 @@ Covers pricing math, metrics-increment correctness, error-path bookkeeping, prom
 
 **Streaming responses.** The wrapper instruments `messages.create` and `chat.completions.create`. Streaming variants (`messages.stream`, `chat.completions.create(stream=True)`) emit usage in a final chunk — not yet wired. Tracked for v0.2.
 
-**Async clients.** `AsyncAnthropic` and `AsyncOpenAI` follow the same shape and would slot into the same wrapper pattern — adding ~30 lines. Open to PRs.
+**Async clients.** Not supported yet. `wrap()` raises `TypeError` for `AsyncAnthropic`, `AsyncOpenAI` and any client whose `create` is a coroutine function, instead of recording calls with zero tokens.
 
 **Cost is list-price.** Enterprise contracts, batch API discounts, and free-tier credits will shift absolute spend. Register custom pricing via `register_pricing(...)` to get your effective rate.
 

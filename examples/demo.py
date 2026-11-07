@@ -47,7 +47,9 @@ def _fake_anthropic_client():
 
 
 def main() -> None:
-    start_metrics_server(9000)
+    # Prometheus runs in docker-compose and scrapes host.docker.internal:9000,
+    # which on Linux arrives on the bridge interface, not loopback.
+    start_metrics_server(9000, addr="0.0.0.0")
     print("Metrics exposed at http://localhost:9000/metrics")
     print("Generating synthetic traffic. Ctrl-C to stop.")
     client = AnthropicMeter(_fake_anthropic_client())

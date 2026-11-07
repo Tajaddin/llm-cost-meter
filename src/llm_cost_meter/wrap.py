@@ -16,11 +16,24 @@ Usage::
 
 from __future__ import annotations
 
+import inspect
+import logging
 import time
 from typing import Any
 
-from llm_cost_meter.metrics import CACHE_HITS, CACHE_MISSES, CALLS, COST, LATENCY, TOKENS
-from llm_cost_meter.pricing import cost_for
+from llm_cost_meter.metrics import (
+    CACHE_HITS,
+    CACHE_MISSES,
+    CALLS,
+    COST,
+    LATENCY,
+    TOKENS,
+    UNPRICED,
+)
+from llm_cost_meter.pricing import cost_for, get_pricing
+
+logger = logging.getLogger(__name__)
+_warned_unpriced: set[tuple[str, str]] = set()
 
 
 # ---------------------------------------------------------------------------
@@ -56,6 +69,19 @@ def _record(
     if input_tokens:
         CACHE_MISSES.labels(provider=provider, model=model).inc(input_tokens)
 
+    if get_pricing(model) is None:
+        if input_tokens or output_tokens or cache_write_tokens or cache_read_tokens:
+            UNPRICED.labels(provider=provider, model=model).inc()
+            if (provider, model) not in _warned_unpriced:
+                _warned_unpriced.add((provider, model))
+                logger.warning(
+                    "No pricing registered for %s model %r; its cost is not recorded. "
+                    "Add it with llm_cost_meter.register_pricing().",
+                    provider,
+                    model,
+                )
+        return
+
     cost = cost_for(
         model,
         input_tokens=input_tokens,
@@ -65,6 +91,16 @@ def _record(
     )
     if cost > 0:
         COST.labels(provider=provider, model=model).inc(cost)
+
+
+def _reject_async(client: Any, create: Any) -> None:
+    # Async SDK resources decorate ``create`` with a sync wrapper that returns a
+    # coroutine, so the class name is the reliable signal for real SDK clients.
+    if "async" in type(client).__name__.lower() or inspect.iscoroutinefunction(create):
+        raise TypeError(
+            f"llm_cost_meter does not support async clients yet ({type(client).__name__}). "
+            "Wrap the synchronous client instead."
+        )
 
 
 def _safe_int(obj: Any, name: str, default: int = 0) -> int:
@@ -130,6 +166,7 @@ class AnthropicMeter:
     __slots__ = ("_inner", "_messages")
 
     def __init__(self, inner: Any) -> None:
+        _reject_async(inner, getattr(getattr(inner, "messages", None), "create", None))
         self._inner = inner
         self._messages = _AnthropicMessagesProxy(inner.messages) if hasattr(inner, "messages") else None
 
@@ -217,6 +254,8 @@ class OpenAIMeter:
     __slots__ = ("_inner", "_chat")
 
     def __init__(self, inner: Any) -> None:
+        completions = getattr(getattr(inner, "chat", None), "completions", None)
+        _reject_async(inner, getattr(completions, "create", None))
         self._inner = inner
         self._chat = _OpenAIChatProxy(inner.chat) if hasattr(inner, "chat") else None
 
@@ -237,8 +276,10 @@ def wrap(client: Any) -> Any:
     """Return a metered wrapper for an Anthropic or OpenAI SDK client.
 
     Detection is done by inspecting attribute shape, so it works even if the
-    SDK package name differs from the typical import path (e.g. ``AsyncOpenAI``,
-    Azure-flavored OpenAI clients, etc.).
+    SDK package name differs from the typical import path (e.g. Azure-flavored
+    OpenAI clients). Async clients (``AsyncAnthropic``, ``AsyncOpenAI``) raise
+    ``TypeError``: their ``create`` returns a coroutine, so usage could not be
+    recorded.
     """
     class_name = type(client).__name__.lower()
     if "anthropic" in class_name:
